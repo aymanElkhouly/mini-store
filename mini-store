@@ -1,0 +1,88 @@
+/*** MiniStore **************************************/
+/*** https://github.com/aymanElkhouly/mini-store ***/
+/****Author: Ayman El Khouly **********************/
+
+import {Injectable} from '@angular/core';
+import {BehaviorSubject, Observable} from 'rxjs';
+@Injectable({
+  providedIn: 'root',
+})
+export class StoreService {
+
+  constructor() {
+    this.storeData = {};
+    this.store = {};
+    this.localStoreNames = [];
+  }
+  public storeData: any;
+  private readonly store: any;
+  localStoreNames: Array<string>;
+
+  createNewStore(storeName: string, initData: any, localStore: boolean): void {
+    this.store[storeName] = new BehaviorSubject<any>(initData);
+    if (localStore) {
+      const data = this.getFromLocalStorage(storeName) || initData;
+      this.localStoreNames.push(storeName);
+      this.set(storeName, data);
+    } else {
+      this.set(storeName, initData);
+    }
+  }
+
+  subscription(storeName: string): Observable<any> {
+    return this.store[storeName];
+  }
+
+  set(storeName: string, data: any): void {
+    // *Detect Store*//
+    const currentStore: BehaviorSubject<any> = this.store[storeName];
+    if (currentStore) {
+      // *Check if store had optioned to save on db or not when created*//
+      if (this.localStoreNames.includes(storeName)) {
+        // *Case(if had local store) Set data to localDb (indexDb || localStorage) *//
+        this.setLocalStorage(storeName , data);
+        this.update(storeName , data);
+        this.fireChanges(storeName, currentStore);
+      } else {
+        // *Case (without local store) Set data to localDb (indexDb) *//
+        this.update(storeName , data);
+        this.fireChanges(storeName, currentStore);
+      }
+
+    } else {
+      console.error(`${storeName} is not assign to store please check it`);
+    }
+  }
+  private fireChanges(storeName: string, currentStore: BehaviorSubject<any>): void{
+    currentStore.next(this.storeData[storeName]);
+  }
+
+  update(storeName: string, data: any): void {
+    this.storeData[storeName] = data;
+  }
+
+  get(key: string): any {
+    return this.storeData[key];
+  }
+
+  private isJson(str: string): boolean {
+    try {
+      JSON.parse(str);
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+  private  setLocalStorage(key: string, data: any): any {
+    const stringData = data ? (typeof data === 'string' ? data : JSON.stringify(data))  : '';
+    return  localStorage.setItem(key, stringData);
+  }
+  private  getFromLocalStorage(key: string): any {
+    const data = localStorage.getItem(key) || '';
+    if (this.isJson(data)) {
+      return JSON.parse(data) || null;
+    } else {
+      return data || null;
+    }
+  }
+}
